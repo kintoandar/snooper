@@ -1,0 +1,19 @@
+language: python
+python: 3.5
+env:
+  - TOXENV=py27
+  - TOXENV=pypy
+install:
+  - pip install -U tox
+  - pip install -r requirements_travis.txt
+script: tox -e ${TOXENV}
+deploy:
+  provider: pypi
+  distributions: sdist bdist_wheel
+  user: kintoandar
+  password:
+    secure: iUwgsEgIFLW3k7l7zf8s2b1B5pWMk9f7fYBVMktoBCOIWnq4F+9L5a89+kWdihXj9WfyhPLKb8vz1fZe2HwuVUFsYkpX5i/aeMEGiemB6AMfm/uB7gRpOPf+cFKQOEgkbsHMd+eFHqVri6sMjTfuXLgNw31qxNbQecfE3ywTU4Z5SvE+A5IDdfMHhGKDSNpO+7975EtOjeg7R+YB5ncDNzegHvYvSmMMfmxUQ49s1HOFJi1XP/sC1IrrJqCtv6lgjxGMngRdJPBWbgy+AvPx3j7Aotj+REOH61B9SrWLnl1BOxcQ6kf5k/SpG8iO0qZBT206j/fX6Xl9ST6esHN6wvOAMwnMhJgtbgBzBPMJFjAYPAU2OWGaJ4OIbixH5YdFnaFT+7on5ZFVcmx/zTr+m4uD5r6pIDQh9sXTmfscEhp21gVJBRLZk7tMt6pk4ZJfMdG+KQTZCU+1ov2OReoI3hz/VQDUIYRl2cT9J2jnU+yEJtbel6QvDPkaNhf3/8MLGmqwz3oT96Ay60Inu41sQMNVE2zEQcI/rOOaZ9QWh6lw5KFBYrGQ9iaMZnzIF+S5BQ1MECUU95lLNZCrwxogD+3/C1RmIKDX8RawADBeucbFA78rc/N5X6gUCl2jK0XkaPMXW7vzuLVZ5lxIXe+CjO5U1HKVHE56gXp65oov9vU=
+  on:
+    tags: true
+    repo: kintoandar/snooper
+    condition: "$TOXENV == py27"
