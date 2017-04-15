@@ -20,7 +20,7 @@ test_requirements = [
 
 setup(
     name='snooper',
-    version='0.1.1',
+    version='0.1.2',
     description="Snooper provides a simple way for finding AWS resources.",
     long_description=readme + '\n\n' + history,
     author="Joel Bastos",
