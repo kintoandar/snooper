@@ -13,7 +13,7 @@ logging.basicConfig(stream=sys.stderr,
                     level=logging.CRITICAL)
 
 
-def create_resource(region, aws_type="ec2"):
+def create_session(region, aws_type="ec2"):
     resource = boto3.resource(aws_type, region_name=region)
     return resource
 
@@ -131,7 +131,7 @@ def main(aws_secret, aws_id, aws_region, service, destroy, dry_run,
                 'Values': ['stopped']
             }]
 
-            ec2 = create_resource(region=aws_region, aws_type="ec2")
+            ec2 = create_session(region=aws_region, aws_type="ec2")
             formatted_query_result = generate_output_from_filtered(
                 get_filtered(ec2.instances.filter, filter_instances_stopped),
                 region=aws_region, id='id', launch_time='launch_time.date()')
@@ -146,7 +146,7 @@ def main(aws_secret, aws_id, aws_region, service, destroy, dry_run,
                 'Values': ['available']
             }]
 
-            ec2 = create_resource(region=aws_region, aws_type="ec2")
+            ec2 = create_session(region=aws_region, aws_type="ec2")
             formatted_query_result = generate_output_from_filtered(
                 get_filtered(ec2.volumes.filter, filter_volumes_available),
                 region=aws_region, id='id', create_time='create_time.date()')
@@ -161,7 +161,7 @@ def main(aws_secret, aws_id, aws_region, service, destroy, dry_run,
                 'Values': ['in-use']
             }]
 
-            ec2 = create_resource(region=aws_region, aws_type="ec2")
+            ec2 = create_session(region=aws_region, aws_type="ec2")
             formatted_query_result = generate_output_from_filtered(
                 get_filtered(ec2.volumes.filter, filter_volumes_available),
                 region=aws_region, id='id', create_time='create_time.date()')
@@ -173,7 +173,7 @@ def main(aws_secret, aws_id, aws_region, service, destroy, dry_run,
                 'Values': ['running']
             }]
 
-            ec2 = create_resource(region=aws_region, aws_type="ec2")
+            ec2 = create_session(region=aws_region, aws_type="ec2")
             formatted_query_result = generate_output_from_filtered(
                 get_filtered(ec2.instances.filter, filter_instances_stopped),
                 region=aws_region, id='id', launch_time='launch_time.date()')
