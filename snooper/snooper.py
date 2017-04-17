@@ -33,34 +33,19 @@ def get_filtered(resource_query, filter_payload):
 def generate_output_from_filtered(filtered_data, region, **extra_kv):
     output = list()
     for item in filtered_data:
+        iteration = dict()
         if item.tags:
-            item.tags.append({
-                'Value': region,
-                'Key': 'region'
-            })
-            for key, value in extra_kv.iteritems():
-                func = "item." + value
-                item.tags.append({
-                    # Using eval is never a good idea.
-                    'Value': str(eval(func)),
-                    'Key': key
-                })
             index = 0
-            iteration = dict()
-            iteration['id'] = item.id
             while index < len(item.tags):
                 iteration[item.tags[index]['Key']] = item.tags[index]['Value']
                 index += 1
-            output.append(iteration)
-        else:
-            iteration = dict()
-            for key, value in extra_kv.iteritems():
-                func = "item." + value
-                # Using eval is never a good idea.
-                iteration[key] = str(eval(func))
-            iteration['id'] = item.id
-            iteration['region'] = region
-            output.append(iteration)
+        for key, value in extra_kv.iteritems():
+            func = "item." + value
+            # Using eval is never a good idea.
+            iteration[key] = str(eval(func))
+        iteration['id'] = str(item.id)
+        iteration['region'] = str(region)
+        output.append(iteration)
 
     return output
 
