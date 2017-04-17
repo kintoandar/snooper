@@ -18,8 +18,8 @@ def create_resource(region, aws_type="ec2"):
     return resource
 
 
-def get_regions():
-    client = boto3.client('ec2')
+def get_regions(region, aws_type="ec2"):
+    client = boto3.client(aws_type, region_name=region)
     regions = [region['RegionName'] for region in
                client.describe_regions()['Regions']]
     return regions
@@ -135,7 +135,9 @@ def main(aws_secret, aws_id, aws_region, service, destroy, dry_run,
             os.environ["AWS_ACCESS_KEY_ID"] = aws_id
 
         if list_regions:
-            click.secho(' '.join(get_regions()), fg='green')
+            click.secho(
+                ' '.join(get_regions(region=aws_region, aws_type="ec2")),
+                fg='green')
             exit(code=0)
 
         if service == 'instances-off':
