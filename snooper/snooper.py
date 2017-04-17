@@ -13,7 +13,7 @@ logging.basicConfig(stream=sys.stderr,
                     level=logging.CRITICAL)
 
 
-def create_resource(region, aws_type="ec2"):
+def create_session(region, aws_type="ec2"):
     resource = boto3.resource(aws_type, region_name=region)
     return resource
 
@@ -33,34 +33,19 @@ def get_filtered(resource_query, filter_payload):
 def generate_output_from_filtered(filtered_data, region, **extra_kv):
     output = list()
     for item in filtered_data:
+        iteration = dict()
         if item.tags:
-            item.tags.append({
-                'Value': region,
-                'Key': 'region'
-            })
-            for key, value in extra_kv.iteritems():
-                func = "item." + value
-                item.tags.append({
-                    # Using eval is never a good idea.
-                    'Value': str(eval(func)),
-                    'Key': key
-                })
             index = 0
-            iteration = dict()
-            iteration['id'] = item.id
             while index < len(item.tags):
                 iteration[item.tags[index]['Key']] = item.tags[index]['Value']
                 index += 1
-            output.append(iteration)
-        else:
-            iteration = dict()
-            for key, value in extra_kv.iteritems():
-                func = "item." + value
-                # Using eval is never a good idea.
-                iteration[key] = str(eval(func))
-            iteration['id'] = item.id
-            iteration['region'] = region
-            output.append(iteration)
+        for key, value in extra_kv.iteritems():
+            func = "item." + value
+            # Using eval is never a good idea.
+            iteration[key] = str(eval(func))
+        iteration['id'] = str(item.id)
+        iteration['region'] = str(region)
+        output.append(iteration)
 
     return output
 
@@ -146,7 +131,7 @@ def main(aws_secret, aws_id, aws_region, service, destroy, dry_run,
                 'Values': ['stopped']
             }]
 
-            ec2 = create_resource(region=aws_region, aws_type="ec2")
+            ec2 = create_session(region=aws_region, aws_type="ec2")
             formatted_query_result = generate_output_from_filtered(
                 get_filtered(ec2.instances.filter, filter_instances_stopped),
                 region=aws_region, id='id', launch_time='launch_time.date()')
@@ -161,7 +146,7 @@ def main(aws_secret, aws_id, aws_region, service, destroy, dry_run,
                 'Values': ['available']
             }]
 
-            ec2 = create_resource(region=aws_region, aws_type="ec2")
+            ec2 = create_session(region=aws_region, aws_type="ec2")
             formatted_query_result = generate_output_from_filtered(
                 get_filtered(ec2.volumes.filter, filter_volumes_available),
                 region=aws_region, id='id', create_time='create_time.date()')
@@ -176,7 +161,7 @@ def main(aws_secret, aws_id, aws_region, service, destroy, dry_run,
                 'Values': ['in-use']
             }]
 
-            ec2 = create_resource(region=aws_region, aws_type="ec2")
+            ec2 = create_session(region=aws_region, aws_type="ec2")
             formatted_query_result = generate_output_from_filtered(
                 get_filtered(ec2.volumes.filter, filter_volumes_available),
                 region=aws_region, id='id', create_time='create_time.date()')
@@ -188,7 +173,7 @@ def main(aws_secret, aws_id, aws_region, service, destroy, dry_run,
                 'Values': ['running']
             }]
 
-            ec2 = create_resource(region=aws_region, aws_type="ec2")
+            ec2 = create_session(region=aws_region, aws_type="ec2")
             formatted_query_result = generate_output_from_filtered(
                 get_filtered(ec2.instances.filter, filter_instances_stopped),
                 region=aws_region, id='id', launch_time='launch_time.date()')
