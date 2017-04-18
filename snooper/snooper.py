@@ -50,13 +50,16 @@ def generate_output_from_filtered(filtered_data, region, **extra_kv):
     return output
 
 
-# TODO:
-def destroy_resources(aws_resource, query_list, dry_run):
+def destroy_resources(aws_resource, query_list, dry_run, resource_type,
+                      delete_method):
     for item in query_list:
         if dry_run:
             click.secho("Will be destroyed: {0}".format(item['id']))
         else:
+            target = getattr(aws_resource, resource_type)(item['id'])
+            response = getattr(target, delete_method)()
             click.secho("Destroyed: {0}".format(item['id']))
+            click.secho("Response: {0}\n".format(json.dumps(response)))
 
 
 @click.command()
@@ -85,7 +88,7 @@ def destroy_resources(aws_resource, query_list, dry_run):
               help='AWS resource type to query. (instances-off)')
 @click.option('--destroy',
               is_flag=True,
-              help='Destroy found resources.')
+              help='Destroy "off" resources.')
 @click.option('--dry-run',
               is_flag=True,
               help='Used with --destroy.')
@@ -108,6 +111,8 @@ def main(aws_secret, aws_id, aws_region, service, destroy, dry_run,
     [instances-on] = EC2 running instances
 
     [volumes-on] = EBS in use volumes
+
+    [--destroy] = Destroy unused/stopped resources
 
     Note: AWS credentials may and should be available as environment variables.
     """
@@ -136,7 +141,9 @@ def main(aws_secret, aws_id, aws_region, service, destroy, dry_run,
                 get_filtered(ec2.instances.filter, filter_instances_stopped),
                 region=aws_region, id='id', launch_time='launch_time.date()')
             if destroy:
-                destroy_resources(ec2, formatted_query_result, dry_run)
+                destroy_resources(ec2, formatted_query_result, dry_run,
+                                  resource_type='Instance',
+                                  delete_method='terminate')
             else:
                 click.secho(json.dumps(formatted_query_result), fg='green')
 
@@ -151,7 +158,9 @@ def main(aws_secret, aws_id, aws_region, service, destroy, dry_run,
                 get_filtered(ec2.volumes.filter, filter_volumes_available),
                 region=aws_region, id='id', create_time='create_time.date()')
             if destroy:
-                destroy_resources(ec2, formatted_query_result, dry_run)
+                destroy_resources(ec2, formatted_query_result, dry_run,
+                                  resource_type='Volume',
+                                  delete_method='delete')
             else:
                 click.secho(json.dumps(formatted_query_result), fg='green')
 

@@ -28,9 +28,11 @@ Snooper provides a simple way for finding AWS resources.
 Features
 --------
 
-* Currently supporting:
+Currently supporting:
+
 * EC2 stopped instances
 * EBS unused volumes
 * EC2 running instances
 * EBS in use volumes
 * List available AWS regions
+* Destroy unused/stopped resources
