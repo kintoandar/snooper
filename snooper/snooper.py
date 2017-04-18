@@ -35,10 +35,8 @@ def generate_output_from_filtered(filtered_data, region, **extra_kv):
     for item in filtered_data:
         iteration = dict()
         if item.tags:
-            index = 0
-            while index < len(item.tags):
+            for index in range(len(item.tags)):
                 iteration[item.tags[index]['Key']] = item.tags[index]['Value']
-                index += 1
         for key, value in extra_kv.iteritems():
             func = "item." + value
             # Using eval is never a good idea.
