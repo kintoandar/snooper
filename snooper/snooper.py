@@ -51,6 +51,41 @@ def generate_output_from_filtered(filtered_data, region, **extra_kv):
     return output
 
 
+def get_world_open_ports(filtered_data, region):
+    output = list()
+    for i in range(len(filtered_data['SecurityGroups'])):
+        iteration = dict()
+        iteration['GroupName'] = filtered_data['SecurityGroups'][i][
+            'GroupName']
+        iteration['Description'] = filtered_data['SecurityGroups'][i][
+            'Description']
+        iteration['GroupId'] = filtered_data['SecurityGroups'][i][
+            'GroupId']
+        iteration['region'] = str(region)
+        iteration['IpPermissions'] = list()
+        for p in range(
+                 len(filtered_data['SecurityGroups'][i]['IpPermissions'])):
+            try:
+                if any(cidr['CidrIp'] == '0.0.0.0/0' for cidr in
+                       filtered_data['SecurityGroups'][i]['IpPermissions'][p][
+                           'IpRanges']):
+                    iteration_ports = dict()
+                    iteration_ports['FromPort'] = \
+                        filtered_data['SecurityGroups'][i]['IpPermissions'][p][
+                            'FromPort']
+                    iteration_ports['ToPort'] = \
+                        filtered_data['SecurityGroups'][i]['IpPermissions'][p][
+                            'ToPort']
+                    iteration_ports['IpProtocol'] = \
+                        filtered_data['SecurityGroups'][i]['IpPermissions'][p][
+                            'IpProtocol']
+                    iteration['IpPermissions'].append(iteration_ports)
+            except Exception, e:
+                pass
+        output.append(iteration)
+    return output
+
+
 def destroy_resources(aws_resource, query_list, dry_run, resource_type,
                       delete_method):
     for item in query_list:
@@ -84,7 +119,8 @@ def destroy_resources(aws_resource, query_list, dry_run, resource_type,
               type=click.Choice(['instances-off',
                                  'volumes-off',
                                  'instances-on',
-                                 'volumes-on'
+                                 'volumes-on',
+                                 'ports-open'
                                  ]),
               help='AWS resource type to query. (instances-off)')
 @click.option('--destroy',
@@ -112,6 +148,8 @@ def main(aws_secret, aws_id, aws_region, service, destroy, dry_run,
     [instances-on] = EC2 running instances
 
     [volumes-on] = EBS in use volumes
+
+    [ports-open] = Security Groups with world open ports
 
     [--destroy] = Destroy unused/stopped resources
 
@@ -191,10 +229,23 @@ def main(aws_secret, aws_id, aws_region, service, destroy, dry_run,
                 region=aws_region, id='id', launch_time='launch_time.date()')
             click.secho(json.dumps(formatted_query_result), fg='green')
 
+        if service == 'ports-open':
+            filter_world_open_ports = [{
+                'Name': 'ip-permission.cidr',
+                'Values': ['0.0.0.0/0']
+            }]
+
+            ec2 = create_session_client(region=aws_region, aws_type="ec2")
+            query_result = get_world_open_ports(
+                ec2.describe_security_groups(Filters=filter_world_open_ports),
+                region=aws_region)
+            click.secho(json.dumps(query_result), fg='green')
+
     except Exception as e:
         logging.critical(str(e))
-        click.secho('==> Try enabling debug for more information.', nl=True,
-                    fg='red')
+        if not debug:
+            click.secho('==> Try enabling debug for more information.', nl=True,
+                        fg='red')
         sys.exit(42)
 
 
