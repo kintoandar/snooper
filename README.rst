@@ -34,5 +34,6 @@ Currently supporting:
 * EBS unused volumes
 * EC2 running instances
 * EBS in use volumes
+* Security Groups with world open ports
 * List available AWS regions
 * Destroy unused/stopped resources

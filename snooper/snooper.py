@@ -13,15 +13,19 @@ logging.basicConfig(stream=sys.stderr,
                     level=logging.CRITICAL)
 
 
-def create_session(region, aws_type="ec2"):
+def create_session_resource(region, aws_type="ec2"):
     resource = boto3.resource(aws_type, region_name=region)
     return resource
 
 
-def get_regions(region, aws_type="ec2"):
+def create_session_client(region, aws_type="ec2"):
     client = boto3.client(aws_type, region_name=region)
+    return client
+
+
+def get_regions(aws_client):
     regions = [region['RegionName'] for region in
-               client.describe_regions()['Regions']]
+               aws_client.describe_regions()['Regions']]
     return regions
 
 
@@ -44,7 +48,41 @@ def generate_output_from_filtered(filtered_data, region, **extra_kv):
         iteration['id'] = str(item.id)
         iteration['region'] = str(region)
         output.append(iteration)
+    return output
 
+
+def get_world_open_ports(filtered_data, region):
+    output = list()
+    for i in range(len(filtered_data['SecurityGroups'])):
+        iteration = dict()
+        iteration['GroupName'] = filtered_data['SecurityGroups'][i][
+            'GroupName']
+        iteration['Description'] = filtered_data['SecurityGroups'][i][
+            'Description']
+        iteration['GroupId'] = filtered_data['SecurityGroups'][i][
+            'GroupId']
+        iteration['region'] = str(region)
+        iteration['IpPermissions'] = list()
+        for p in range(
+                 len(filtered_data['SecurityGroups'][i]['IpPermissions'])):
+            try:
+                if any(cidr['CidrIp'] == '0.0.0.0/0' for cidr in
+                       filtered_data['SecurityGroups'][i]['IpPermissions'][p][
+                           'IpRanges']):
+                    iteration_ports = dict()
+                    iteration_ports['FromPort'] = \
+                        filtered_data['SecurityGroups'][i]['IpPermissions'][p][
+                            'FromPort']
+                    iteration_ports['ToPort'] = \
+                        filtered_data['SecurityGroups'][i]['IpPermissions'][p][
+                            'ToPort']
+                    iteration_ports['IpProtocol'] = \
+                        filtered_data['SecurityGroups'][i]['IpPermissions'][p][
+                            'IpProtocol']
+                    iteration['IpPermissions'].append(iteration_ports)
+            except Exception, e:
+                pass
+        output.append(iteration)
     return output
 
 
@@ -81,7 +119,8 @@ def destroy_resources(aws_resource, query_list, dry_run, resource_type,
               type=click.Choice(['instances-off',
                                  'volumes-off',
                                  'instances-on',
-                                 'volumes-on'
+                                 'volumes-on',
+                                 'ports-open'
                                  ]),
               help='AWS resource type to query. (instances-off)')
 @click.option('--destroy',
@@ -110,6 +149,8 @@ def main(aws_secret, aws_id, aws_region, service, destroy, dry_run,
 
     [volumes-on] = EBS in use volumes
 
+    [ports-open] = Security Groups with world open ports
+
     [--destroy] = Destroy unused/stopped resources
 
     Note: AWS credentials may and should be available as environment variables.
@@ -123,8 +164,10 @@ def main(aws_secret, aws_id, aws_region, service, destroy, dry_run,
             os.environ["AWS_ACCESS_KEY_ID"] = aws_id
 
         if list_regions:
+            ec2_client = create_session_client(region=aws_region,
+                                               aws_type="ec2")
             click.secho(
-                ' '.join(get_regions(region=aws_region, aws_type="ec2")),
+                ' '.join(get_regions(ec2_client)),
                 fg='green')
             exit(code=0)
 
@@ -134,7 +177,7 @@ def main(aws_secret, aws_id, aws_region, service, destroy, dry_run,
                 'Values': ['stopped']
             }]
 
-            ec2 = create_session(region=aws_region, aws_type="ec2")
+            ec2 = create_session_resource(region=aws_region, aws_type="ec2")
             formatted_query_result = generate_output_from_filtered(
                 get_filtered(ec2.instances.filter, filter_instances_stopped),
                 region=aws_region, id='id', launch_time='launch_time.date()')
@@ -151,7 +194,7 @@ def main(aws_secret, aws_id, aws_region, service, destroy, dry_run,
                 'Values': ['available']
             }]
 
-            ec2 = create_session(region=aws_region, aws_type="ec2")
+            ec2 = create_session_resource(region=aws_region, aws_type="ec2")
             formatted_query_result = generate_output_from_filtered(
                 get_filtered(ec2.volumes.filter, filter_volumes_available),
                 region=aws_region, id='id', create_time='create_time.date()')
@@ -168,7 +211,7 @@ def main(aws_secret, aws_id, aws_region, service, destroy, dry_run,
                 'Values': ['in-use']
             }]
 
-            ec2 = create_session(region=aws_region, aws_type="ec2")
+            ec2 = create_session_resource(region=aws_region, aws_type="ec2")
             formatted_query_result = generate_output_from_filtered(
                 get_filtered(ec2.volumes.filter, filter_volumes_available),
                 region=aws_region, id='id', create_time='create_time.date()')
@@ -180,16 +223,29 @@ def main(aws_secret, aws_id, aws_region, service, destroy, dry_run,
                 'Values': ['running']
             }]
 
-            ec2 = create_session(region=aws_region, aws_type="ec2")
+            ec2 = create_session_resource(region=aws_region, aws_type="ec2")
             formatted_query_result = generate_output_from_filtered(
                 get_filtered(ec2.instances.filter, filter_instances_stopped),
                 region=aws_region, id='id', launch_time='launch_time.date()')
             click.secho(json.dumps(formatted_query_result), fg='green')
 
+        if service == 'ports-open':
+            filter_world_open_ports = [{
+                'Name': 'ip-permission.cidr',
+                'Values': ['0.0.0.0/0']
+            }]
+
+            ec2 = create_session_client(region=aws_region, aws_type="ec2")
+            query_result = get_world_open_ports(
+                ec2.describe_security_groups(Filters=filter_world_open_ports),
+                region=aws_region)
+            click.secho(json.dumps(query_result), fg='green')
+
     except Exception as e:
         logging.critical(str(e))
-        click.secho('==> Try enabling debug for more information.', nl=True,
-                    fg='red')
+        if not debug:
+            click.secho('==> Try enabling debug for more information.', nl=True,
+                        fg='red')
         sys.exit(42)
 
 
